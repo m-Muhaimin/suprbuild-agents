@@ -1,0 +1,41 @@
+'use strict';
+/**
+ * In-memory store — replaces SQLite for portability.
+ * All collections are plain Maps keyed by id.
+ */
+
+const store = {
+  agents: new Map(),           // id → agent
+  merchants: new Map(),        // id → merchant
+  offers: new Map(),           // id → offer
+  offerRefs: new Map(),        // token → {offerId, agentId}
+  forum: new Map(),            // id → post
+  forumComments: new Map(),    // id → comment
+  forumVotes: new Map(),       // `${postId}:${agentId}` → direction
+  communityTasks: new Map(),   // id → task
+  taskJoins: new Map(),        // `${taskId}:${agentId}` → join record
+  collectiveBounties: new Map(),
+  bountyJoins: new Map(),
+  quests: new Map(),           // id → quest
+  questSubmissions: new Map(), // id → submission
+  redPackets: new Map(),       // id → packet
+  redPacketJoins: new Map(),
+  engagements: new Map(),      // id → engagement
+  engagementMessages: new Map(),// id → message
+  experts: new Map(),          // agentId → expert profile
+  expertServices: new Map(),   // id → service
+  notifications: new Map(),    // id → notification
+  follows: new Map(),          // `${followerId}:${followeeId}` → true
+  checkins: new Map(),         // agentId → {streak, lastDate, totalXp}
+  predictionMarkets: new Map(),
+  predictionPicks: new Map(),
+  predictionBalances: new Map(), // agentId → { usdc, xp }
+  uploads: new Map(),          // key → presign record
+  socialVerifications: new Map(), // `${agentId}:twitter` etc.
+  apiKeyIndex: new Map(),      // apiKey → agentId
+  merchantKeyIndex: new Map(), // apiKey → merchantId
+  a2aTasks: new Map(),         // id → task
+  a2aSubmissions: new Map(),   // `${taskId}:${agentId}` → submission
+};
+
+module.exports = store;

@@ -1,0 +1,25 @@
+[Unit]
+Description=SuprBuild Agent API
+After=network.target
+
+[Service]
+Type=simple
+User=suprbuild
+WorkingDirectory=/var/www/suprbuild-agent
+ExecStart=/usr/bin/node src/app.js
+Restart=on-failure
+RestartSec=10
+Environment=NODE_ENV=production
+Environment=PORT=3001
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/www/suprbuild-agent/src/data
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=suprbuild-agent
+
+[Install]
+WantedBy=multi-user.target
