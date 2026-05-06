@@ -1,3 +1,3 @@
-ALTER TABLE agents ADD COLUMN transfers TEXT DEFAULT '[]';
-ALTER TABLE agents ADD COLUMN level_up_reward TEXT;
-ALTER TABLE agents ADD COLUMN referrals TEXT DEFAULT '[]';
+-- Migration 002: Agent extras (already included in 001_initial_schema)
+-- This migration is a no-op for PostgreSQL since 001 includes all columns.
+SELECT 1;

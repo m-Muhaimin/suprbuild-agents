@@ -1,36 +1,42 @@
-const queries = require('../db/queries');
+'use strict';
+const store = require('../db/store');
+const { query } = require('../db/pool');
 const { verifyToken } = require('../utils/crypto');
 
-/**
- * Basic Authentication: Validates JWT and attaches user to request.
- */
-function authenticate(req, res, next) {
+async function findMerchant(id) {
+  const { rows } = await query('SELECT * FROM merchants WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+async function findMerchantByApiKey(apiKey) {
+  const { rows } = await query('SELECT * FROM merchants WHERE api_key = $1', [apiKey]);
+  return rows[0] || null;
+}
+
+async function authenticate(req, res, next) {
   const header = req.headers['authorization'] || '';
   const token = header.replace('Bearer ', '').trim();
 
-  if (!token) {
-    // Fallback to legacy API key check if no JWT is provided (for backward compatibility during migration)
-    return legacyAuth(req, res, next);
-  }
+  if (!token) return await legacyAuth(req, res, next);
 
   const decoded = verifyToken(token);
   if (!decoded) return res.status(401).json({ error: 'Invalid or expired token' });
 
-  req.auth = decoded; // { id, role, did }
+  req.auth = decoded;
 
-  // Attach full object from DB
-  if (decoded.role === 'AGENT' || decoded.role === 'EXPERT') {
-    req.agent = queries.agents.findById(decoded.id);
-  } else if (decoded.role === 'MERCHANT') {
-    req.merchant = queries.merchantAuth.findById(decoded.id); // Assuming findById exists or should be added
+  try {
+    if (decoded.role === 'AGENT' || decoded.role === 'EXPERT') {
+      req.agent = await store.agents.findById(decoded.id);
+    } else if (decoded.role === 'MERCHANT') {
+      req.merchant = await findMerchant(decoded.id);
+    }
+    next();
+  } catch (err) {
+    console.error('[auth] database error', err);
+    res.status(500).json({ error: 'Internal server error during authentication' });
   }
-
-  next();
 }
 
-/**
- * RBAC: Restricts access to specific roles.
- */
 function requireRole(roles) {
   if (typeof roles === 'string') roles = [roles];
   return (req, res, next) => {
@@ -41,38 +47,51 @@ function requireRole(roles) {
   };
 }
 
-/**
- * Legacy Support: For clients still using tabb_ keys.
- */
-function legacyAuth(req, res, next) {
-  const header = req.headers['authorization'] || '';
+async function legacyAuth(req, res, next) {
+  const header = req.headers['x-api-key'] || req.headers['authorization'] || '';
   const token = header.replace('Bearer ', '').trim();
 
-  const agent = queries.agents.findByApiKey(token);
-  if (agent) {
-    req.agent = agent;
-    req.auth = { id: agent.id, role: agent.is_expert ? 'EXPERT' : 'AGENT', did: agent.did };
-    return next();
-  }
+  if (!token) return res.status(401).json({ error: 'Missing Authorization or X-API-Key header' });
 
-  const merchant = queries.merchantAuth.findByApiKey(token);
-  if (merchant) {
-    req.merchant = merchant;
-    req.auth = { id: merchant.id, role: 'MERCHANT', did: merchant.did };
-    return next();
-  }
+  try {
+    const agent = await store.agents.findByApiKey(token);
+    if (agent) {
+      req.agent = agent;
+      req.auth = { id: agent.id, role: 'AGENT' };
+      return next();
+    }
 
-  return res.status(401).json({ error: 'Missing or invalid Authorization' });
+    const merchant = await findMerchantByApiKey(token);
+    if (merchant) {
+      req.merchant = merchant;
+      req.auth = { id: merchant.id, role: 'MERCHANT' };
+      return next();
+    }
+
+    return res.status(401).json({ error: 'Invalid API key' });
+  } catch (err) {
+    console.error('[auth-legacy] database error', err);
+    res.status(500).json({ error: 'Internal server error during authentication' });
+  }
 }
 
-// Named wrappers for existing routes
-const agentAuth = (req, res, next) => authenticate(req, res, () => requireRole(['AGENT', 'EXPERT'])(req, res, next));
-const merchantAuth = (req, res, next) => authenticate(req, res, () => requireRole(['MERCHANT'])(req, res, next));
-const optionalAgentAuth = (req, res, next) => {
-  const header = req.headers['authorization'] || '';
+const agentAuth = async (req, res, next) => {
+  await authenticate(req, res, () => {
+    requireRole(['AGENT', 'EXPERT'])(req, res, next);
+  });
+};
+
+const merchantAuth = async (req, res, next) => {
+  await authenticate(req, res, () => {
+    requireRole(['MERCHANT'])(req, res, next);
+  });
+};
+
+const optionalAgentAuth = async (req, res, next) => {
+  const header = req.headers['x-api-key'] || req.headers['authorization'] || '';
   const token = header.replace('Bearer ', '').trim();
   if (token) {
-    authenticate(req, res, next);
+    await authenticate(req, res, next);
   } else {
     next();
   }

@@ -1,16 +1,15 @@
 'use strict';
 const express = require('express');
-const queries = require('../db/queries');
+const store = require('../db/store');
 
 const router = express.Router();
 
 /**
  * ANP (Agent Network Protocol) Discovery
- * Mirrors https://agenthansa.com/.well-known/agent.json
  */
 router.get('/agent.json', (req, res) => {
   res.json({
-    name: "AgentHansa Platform",
+    name: "SuprBuild Agent Platform",
     description: "Decentralized AI Agent Commerce Platform",
     version: "1.0.0",
     did: "did:web:localhost:3001",
@@ -20,23 +19,28 @@ router.get('/agent.json', (req, res) => {
       messaging: "/api/agents/message"
     },
     protocols: ["anp", "a2a", "acp", "x402"],
-    publicKey: "z6MkpTHR8VNsBxY97Y3fL7G1VvH" // Example
+    publicKey: "z6MkpTHR8VNsBxY97Y3fL7G1VvH"
   });
 });
 
 /**
  * Federated Agent Discovery
- * Returns all registered agents' cards
  */
-router.get('/agents.json', (req, res) => {
-  const agents = queries.agents.all().map(a => ({
-    id: a.id,
-    did: a.did,
-    name: a.name,
-    description: a.description,
-    card: `/api/agents/${a.id}/card`
-  }));
-  res.json({ agents });
+router.get('/agents.json', async (req, res) => {
+  try {
+    const all = await store.agents.all();
+    const agents = all.map(a => ({
+      id: a.id,
+      did: a.did || `did:key:${a.id}`,
+      name: a.name,
+      description: a.description,
+      card: `/api/agents/${a.id}/card`
+    }));
+    res.json({ agents });
+  } catch (err) {
+    console.error('[discovery-agents] error', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 /**
