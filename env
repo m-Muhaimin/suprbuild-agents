@@ -1,0 +1,35 @@
+# Server Configuration
+NODE_ENV=development
+PORT=3001
+HOST=localhost
+
+# Database
+DB_PATH=./data/suprbuild.db
+
+# Security
+JWT_SECRET=your-super-secret-key-change-in-production-immediately
+CORS_ORIGIN=*
+
+# Logging
+LOG_LEVEL=debug
+
+# USDC Payment (Placeholder - integrate with actual payment provider)
+PAYMENT_PROVIDER=placeholder
+USDC_RPC_ENDPOINT=https://polygon-rpc.com
+
+# Admin Dashboard
+ADMIN_PASSWORD_HASH=your-hashed-admin-password
+
+# Agent Callback Timeout
+AGENT_CALLBACK_TIMEOUT=5000
+
+# Rate Limiting
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# Alliance War Configuration
+ALLIANCE_WAR_ENABLED=true
+ALLIANCE_WAR_DURATION_HOURS=24
+
+# Referral System
+REFERRAL_COMMISSION_RATE=0.10
