@@ -45,6 +45,9 @@ const governanceRoutes = require('./routes/governance');
 const walletRoutes = require('./routes/wallet');
 const wellKnownRoutes = require('./routes/wellKnown');
 
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
 // API Routes
 app.use('/api/agents', agentRoutes);
 app.use('/api/discovery', discoveryRoutes);
@@ -64,15 +67,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Root endpoint
+// Root endpoint - serve the dashboard
 app.get('/', (req, res) => {
-  res.json({
-    name: 'SuprBuild Agent Platform',
-    version: '1.0.0',
-    description: 'Decentralized Autonomous Agent Commerce Protocol',
-    docs: 'https://github.com/m-Muhaimin/suprbuild-agents',
-    status: 'active'
-  });
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // 404 handler
