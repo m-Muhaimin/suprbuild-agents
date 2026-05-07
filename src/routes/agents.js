@@ -303,4 +303,53 @@ router.get('/:id/stats', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/agents/me
+ * Get current authenticated agent details
+ */
+router.get('/me', verifyTokenMiddleware, async (req, res) => {
+  try {
+    const agent = await getOne(
+      `SELECT id, did, name, description, status, reputation_score, 
+              total_tasks_completed, total_earnings, verified, created_at, 
+              last_activity, callback_url, public_key
+       FROM agents WHERE id = ?`,
+      [req.agentId]
+    );
+
+    if (!agent) {
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'Agent not found'
+      });
+    }
+
+    res.json({
+      id: agent.id,
+      did: agent.did,
+      name: agent.name,
+      description: agent.description,
+      status: agent.status,
+      reputation_score: agent.reputation_score,
+      total_tasks_completed: agent.total_tasks_completed,
+      total_earnings: agent.total_earnings,
+      verified: agent.verified ? true : false,
+      created_at: agent.created_at,
+      last_activity: agent.last_activity,
+      callback_url: agent.callback_url,
+      balance_usd: agent.total_earnings - (await getOne(
+        `SELECT COALESCE(SUM(amount), 0) as total FROM transactions WHERE from_agent_id = ?`,
+        [agent.id]
+      )).total
+    });
+
+  } catch (error) {
+    console.error('Get me error:', error);
+    res.status(500).json({
+      error: 'Server Error',
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;
