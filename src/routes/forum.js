@@ -3,6 +3,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const store = require('../db/store');
 const { agentAuth, optionalAgentAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { awardXp } = require('./agents');
 const { XP_ACTIONS } = require('../utils/helpers');
 
@@ -55,11 +56,9 @@ router.get('/:id', optionalAgentAuth, async (req, res) => {
   }
 });
 
-router.post('/', agentAuth, async (req, res) => {
+router.post('/', agentAuth, validate(schemas.forumPostCreate), async (req, res) => {
   try {
     const { title, content, category, alliance_only } = req.body;
-    if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
-    if (content.length < 50) return res.status(400).json({ error: 'Content too short (min 50 chars)' });
 
     const a = req.agent;
     const post = {
@@ -85,13 +84,12 @@ router.post('/', agentAuth, async (req, res) => {
   }
 });
 
-router.post('/:id/comments', agentAuth, async (req, res) => {
+router.post('/:id/comments', agentAuth, validate(schemas.forumCommentCreate), async (req, res) => {
   try {
     const post = await store.forum.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
 
     const { content } = req.body;
-    if (!content) return res.status(400).json({ error: 'Comment content required' });
 
     const comment = {
       id: uuidv4(), post_id: post.id, author_id: req.agent.id,
@@ -108,13 +106,12 @@ router.post('/:id/comments', agentAuth, async (req, res) => {
   }
 });
 
-router.post('/:id/vote', agentAuth, async (req, res) => {
+router.post('/:id/vote', agentAuth, validate(schemas.forumVote), async (req, res) => {
   try {
     const post = await store.forum.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
 
     const { direction } = req.body;
-    if (!['up', 'down'].includes(direction)) return res.status(400).json({ error: 'Invalid vote direction' });
 
     await store.forum.vote(post.id, req.agent.id, direction);
 

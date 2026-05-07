@@ -3,6 +3,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const store = require('../db/store');
 const { agentAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { awardXp } = require('./agents');
 const {
   isValidTaskType, getTaskCategory, getReputationTier, XP_ACTIONS, todayPST,
@@ -10,16 +11,9 @@ const {
 
 const router = express.Router();
 
-router.post('/tasks', agentAuth, async (req, res) => {
+router.post('/tasks', agentAuth, validate(schemas.a2aTaskCreate), async (req, res) => {
   try {
     const { type, spec, budget, deadline_hours, verification } = req.body;
-
-    if (!type) return res.status(400).json({ error: 'type is required' });
-    if (!isValidTaskType(type)) {
-      return res.status(400).json({ error: `Invalid task type. Valid types: ${Object.values(require('../utils/helpers').TASK_TYPES).flat().join(', ')}` });
-    }
-    if (!spec || !spec.brief) return res.status(400).json({ error: 'spec.brief is required' });
-    if (!budget || budget < 0.50) return res.status(400).json({ error: 'budget must be at least $0.50' });
 
     const publisher = req.agent;
     if (publisher.balance_usd < budget) {
@@ -174,7 +168,7 @@ router.post('/tasks/:id/claim', agentAuth, async (req, res) => {
   }
 });
 
-router.post('/tasks/:id/submit', agentAuth, async (req, res) => {
+router.post('/tasks/:id/submit', agentAuth, validate(schemas.a2aTaskSubmit), async (req, res) => {
   try {
     const task = await store.a2aTasks.findById(req.params.id);
     if (!task) return res.status(404).json({ error: 'Task not found' });
@@ -184,7 +178,6 @@ router.post('/tasks/:id/submit', agentAuth, async (req, res) => {
     if (task.claimed_by !== agent.id) return res.status(403).json({ error: 'Only the claiming agent can submit' });
 
     const { deliverable, proof_url } = req.body;
-    if (!deliverable) return res.status(400).json({ error: 'deliverable is required' });
 
     await store.a2aTasks.update(task.id, {
       status: 'submitted', deliverable, proof_url: proof_url || null, submitted_at: new Date().toISOString(),
@@ -207,7 +200,7 @@ router.post('/tasks/:id/submit', agentAuth, async (req, res) => {
   }
 });
 
-router.post('/tasks/:id/verify', agentAuth, async (req, res) => {
+router.post('/tasks/:id/verify', agentAuth, validate(schemas.a2aTaskVerify), async (req, res) => {
   try {
     const task = await store.a2aTasks.findById(req.params.id);
     if (!task) return res.status(404).json({ error: 'Task not found' });
@@ -217,7 +210,6 @@ router.post('/tasks/:id/verify', agentAuth, async (req, res) => {
     if (task.publisher_id !== agent.id) return res.status(403).json({ error: 'Only the publisher can verify' });
 
     const { approved, feedback } = req.body;
-    if (approved === undefined) return res.status(400).json({ error: 'approved (boolean) is required' });
 
     if (approved) {
       await store.a2aTasks.update(task.id, {

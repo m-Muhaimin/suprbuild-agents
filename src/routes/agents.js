@@ -3,6 +3,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const store = require('../db/store');
 const { agentAuth, optionalAgentAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const {
   generateApiKey, generateReferralCode, getLevel, getStreakPayout,
   XP_ACTIONS, ALLIANCES, todayPST, TASK_CATEGORIES, isValidTaskType, getAllTaskTypes,
@@ -50,10 +51,9 @@ async function awardXp(agentId, amount, reason) {
   return { xp: allowed, agent };
 }
 
-router.post('/register', async (req, res) => {
+router.post('/register', validate(schemas.agentRegister), async (req, res) => {
   try {
     const { name, description, referral_code, capabilities, balance_usd } = req.body;
-    if (!name) return res.status(400).json({ error: 'name is required' });
 
     const id = uuidv4();
     const api_key = generateApiKey();
@@ -104,7 +104,7 @@ router.get('/me', agentAuth, async (req, res) => {
   });
 });
 
-router.patch('/me', agentAuth, async (req, res) => {
+router.patch('/me', agentAuth, validate(schemas.agentUpdate), async (req, res) => {
   const a = req.agent;
   const { name, description, callback_url } = req.body;
   const updates = {};
@@ -249,10 +249,9 @@ router.get('/alliance', agentAuth, async (req, res) => {
   res.json({ alliance: a.alliance, alliance_name: ALLIANCES[a.alliance] || null, changes_left: a.alliance_changes_left });
 });
 
-router.patch('/alliance', agentAuth, async (req, res) => {
+router.patch('/alliance', agentAuth, validate(schemas.allianceUpdate), async (req, res) => {
   const a = req.agent;
   const { alliance } = req.body;
-  if (!['red', 'blue', 'green'].includes(alliance)) return res.status(400).json({ error: 'alliance must be red, blue, or green' });
   if (a.alliance && a.alliance_changes_left <= 0) return res.status(400).json({ error: 'No alliance changes remaining' });
 
   const updates = { alliance };
@@ -268,9 +267,8 @@ router.get('/capabilities', agentAuth, async (req, res) => {
   res.json({ agent_id: req.agent.id, capabilities: req.agent.capabilities || [], available_categories: TASK_CATEGORIES, available_types: getAllTaskTypes() });
 });
 
-router.patch('/capabilities', agentAuth, async (req, res) => {
+router.patch('/capabilities', agentAuth, validate(schemas.capabilitiesUpdate), async (req, res) => {
   const { capabilities } = req.body;
-  if (!Array.isArray(capabilities)) return res.status(400).json({ error: 'capabilities must be an array' });
   const valid = capabilities.filter(c => isValidTaskType(c) || TASK_CATEGORIES.includes(c));
   const invalid = capabilities.filter(c => !isValidTaskType(c) && !TASK_CATEGORIES.includes(c));
   if (invalid.length) return res.status(400).json({ error: `Invalid capabilities: ${invalid.join(', ')}`, valid });
@@ -360,10 +358,9 @@ router.get('/transfers', agentAuth, async (req, res) => {
   res.json({ transfers: a.transfers || [], balance_usd: a.balance_usd });
 });
 
-router.put('/wallet', agentAuth, async (req, res) => {
+router.put('/wallet', agentAuth, validate(schemas.walletUpdate), async (req, res) => {
   const a = req.agent;
   const { wallet_address } = req.body;
-  if (!wallet_address) return res.status(400).json({ error: 'wallet_address required' });
 
   const onboarding = typeof a.onboarding === 'string' ? JSON.parse(a.onboarding) : a.onboarding || {};
   onboarding.wallet_set = true;
@@ -374,10 +371,9 @@ router.put('/wallet', agentAuth, async (req, res) => {
   res.json({ wallet_address: a.wallet_address, message: 'Solana wallet linked. Payouts will batch weekly with 7-day hold.' });
 });
 
-router.put('/fluxa-wallet', agentAuth, async (req, res) => {
+router.put('/fluxa-wallet', agentAuth, validate(schemas.fluxaWalletUpdate), async (req, res) => {
   const a = req.agent;
   const { fluxa_agent_id } = req.body;
-  if (!fluxa_agent_id) return res.status(400).json({ error: 'fluxa_agent_id required' });
 
   const onboarding = typeof a.onboarding === 'string' ? JSON.parse(a.onboarding) : a.onboarding || {};
   onboarding.wallet_set = true;

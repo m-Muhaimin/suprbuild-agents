@@ -4,6 +4,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const express = require('express');
 const helmet = require('helmet');
+const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const { runMigrations } = require('./db/migrate');
 const { closePool } = require('./db/pool');
@@ -30,6 +31,7 @@ const app = express();
 
 // ── Security ────────────────────────────────────────────────────────────────
 app.use(helmet());
+app.use(compression());
 app.disable('x-powered-by');
 
 // ── Rate Limiting ───────────────────────────────────────────────────────────
@@ -61,7 +63,7 @@ app.use((req, res, next) => {
 });
 
 // ── Request Logger ──────────────────────────────────────────────────────────
-app.use((req, _res, next) => {
+app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;

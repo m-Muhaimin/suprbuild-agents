@@ -3,6 +3,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const store = require('../db/store');
 const { agentAuth, merchantAuth } = require('../middleware/auth');
+const { validate, schemas } = require('../middleware/validate');
 const { generateApiKey, XP_ACTIONS } = require('../utils/helpers');
 const { awardXp } = require('./agents');
 const { generateKeypair, publicKeyToDid, createToken } = require('../utils/crypto');
@@ -129,11 +130,10 @@ communityRouter.get('/tasks/mine', agentAuth, async (req, res) => {
   }
 });
 
-communityRouter.post('/tasks', agentAuth, async (req, res) => {
+communityRouter.post('/tasks', agentAuth, validate(schemas.communityTaskCreate), async (req, res) => {
   try {
     const a = req.agent;
     const { title, description, goal, reward_amount } = req.body;
-    if (!title || !reward_amount) return res.status(400).json({ error: 'title and reward_amount required' });
 
     const task = {
       id: uuidv4(), title, description: description || '', goal: goal || '',
@@ -182,11 +182,10 @@ collectiveRouter.get('/bounties', async (req, res) => {
   }
 });
 
-collectiveRouter.post('/bounties', agentAuth, async (req, res) => {
+collectiveRouter.post('/bounties', agentAuth, validate(schemas.collectiveBountyCreate), async (req, res) => {
   try {
     const a = req.agent;
     const { title, description, reward_pool, reward_currency } = req.body;
-    if (!title) return res.status(400).json({ error: 'title required' });
 
     const bounty = {
       id: uuidv4(), title, description: description || '',
@@ -266,11 +265,10 @@ predictionRouter.get('/markets', async (req, res) => {
   }
 });
 
-predictionRouter.post('/picks', agentAuth, async (req, res) => {
+predictionRouter.post('/picks', agentAuth, validate(schemas.predictionPick), async (req, res) => {
   try {
     const a = req.agent;
     const { market_id, outcome, stake, stake_currency } = req.body;
-    if (!market_id || !outcome) return res.status(400).json({ error: 'market_id and outcome required' });
 
     const market = await store.predictionMarkets.findById(market_id);
     if (!market) return res.status(404).json({ error: 'Market not found' });
@@ -306,10 +304,9 @@ predictionRouter.get('/balance', agentAuth, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════
 const merchantsRouter = express.Router();
 
-merchantsRouter.post('/register', async (req, res) => {
+merchantsRouter.post('/register', validate(schemas.merchantRegister), async (req, res) => {
   try {
     const { name, email, invite_code, agent_referral_code } = req.body;
-    if (!name) return res.status(400).json({ error: 'name required' });
 
     const id = uuidv4();
     const api_key = generateApiKey('merch');
@@ -379,11 +376,10 @@ merchantsRouter.get('/dashboard', merchantAuth, async (req, res) => {
   }
 });
 
-merchantsRouter.post('/offers', merchantAuth, async (req, res) => {
+merchantsRouter.post('/offers', merchantAuth, validate(schemas.merchantOfferCreate), async (req, res) => {
   try {
     const m = req.merchant;
     const { title, description, payout_usd, signals, anti_signals, pitch_guidance } = req.body;
-    if (!title || !payout_usd) return res.status(400).json({ error: 'title and payout_usd required' });
 
     const offer = {
       id: uuidv4(), title, description: description || '', payout_usd,
@@ -465,11 +461,10 @@ expertsRouter.get('/', async (req, res) => {
   }
 });
 
-expertsRouter.post('/upgrade', agentAuth, async (req, res) => {
+expertsRouter.post('/upgrade', agentAuth, validate(schemas.expertUpgrade), async (req, res) => {
   try {
     const a = req.agent;
     const { slug, display_name, specialties } = req.body;
-    if (!slug || !display_name) return res.status(400).json({ error: 'slug and display_name required' });
 
     await store.expertServices.create({
       id: uuidv4(), agent_id: a.id, title: display_name,
@@ -484,10 +479,9 @@ expertsRouter.post('/upgrade', agentAuth, async (req, res) => {
   }
 });
 
-expertsRouter.post('/engagements', agentAuth, async (req, res) => {
+expertsRouter.post('/engagements', agentAuth, validate(schemas.expertEngagement), async (req, res) => {
   try {
     const { expert_slug, requirements, tier_id } = req.body;
-    if (!expert_slug || !requirements) return res.status(400).json({ error: 'expert_slug and requirements required' });
 
     const engagement = {
       id: uuidv4(), title: `Expert: ${expert_slug}`,
